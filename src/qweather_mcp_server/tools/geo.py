@@ -47,7 +47,7 @@ def register_geo_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     def get_top_cities(
         number: int = 10, city_type: str = "cn", lang: str = "zh"
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Dict[str, Any]:
         """获取热门城市列表。
 
         Args:
@@ -56,14 +56,13 @@ def register_geo_tools(mcp: FastMCP) -> None:
             lang: 语言，默认 "zh"。
         """
         if not 1 <= number <= 100:
-            logger.error(f"Invalid number: {number}")
-            return None
+            return {"code": "error", "error": f"Invalid number: {number}"}
         if city_type not in {"cn", "world", "overseas"}:
-            logger.error(f"Invalid city_type: {city_type}")
-            return None
-
-        url = f"https://{api_host}/geo/v2/city/top"
-        return api_get(url, params={"number": str(number), "type": city_type, "lang": lang})
+            return {"code": "error", "error": f"Invalid city_type: {city_type}"}
+        return api_get(
+            f"https://{api_host}/geo/v2/city/top",
+            params={"number": str(number), "type": city_type, "lang": lang},
+        )
 
     @mcp.tool()
     def search_poi(
@@ -74,7 +73,7 @@ def register_geo_tools(mcp: FastMCP) -> None:
         radius: int = 5000,
         page: int = 1,
         lang: str = "zh",
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Dict[str, Any]:
         """关键词搜索兴趣点（POI）。
 
         Args:
@@ -87,11 +86,9 @@ def register_geo_tools(mcp: FastMCP) -> None:
             lang: 语言，默认 "zh"。
         """
         if poi_type not in POI_TYPES:
-            logger.error(f"Invalid POI type: {poi_type}")
-            return None
+            return {"code": "error", "error": f"Invalid poi_type: {poi_type}"}
         if not 100 <= radius <= 50000:
-            logger.error(f"Invalid radius: {radius}")
-            return None
+            return {"code": "error", "error": f"Invalid radius: {radius}"}
 
         loc = location.strip()
         if "," in loc:
@@ -99,15 +96,13 @@ def register_geo_tools(mcp: FastMCP) -> None:
                 lon, lat = [float(s) for s in loc.split(",", 1)]
                 loc = f"{lon:.2f},{lat:.2f}"
             except Exception:
-                logger.error(f"Bad coords: {loc}")
-                return None
+                return {"code": "error", "error": f"Bad coords: {loc}"}
         elif loc.isdigit():
-            logger.error(f"POI lookup requires coords, got LocationID: {loc}")
-            return None
+            return {"code": "error", "error": "POI lookup requires coords, not LocationID"}
         else:
             resolved = _resolve_city(loc, as_coords=True)
             if not resolved:
-                return None
+                return {"code": "error", "error": f"Cannot resolve city: {loc}"}
             loc = resolved
 
         params: Dict[str, Any] = {
@@ -132,7 +127,7 @@ def register_geo_tools(mcp: FastMCP) -> None:
         city: Optional[str] = None,
         page: int = 1,
         lang: str = "zh",
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Dict[str, Any]:
         """范围搜索 POI，按距离排序。
 
         Args:
@@ -144,22 +139,18 @@ def register_geo_tools(mcp: FastMCP) -> None:
             lang: 语言，默认 "zh"。
         """
         if poi_type not in POI_TYPES:
-            logger.error(f"Invalid POI type: {poi_type}")
-            return None
+            return {"code": "error", "error": f"Invalid poi_type: {poi_type}"}
         if not 1 <= radius <= 50:
-            logger.error(f"Invalid radius: {radius}")
-            return None
+            return {"code": "error", "error": f"Invalid radius: {radius}"}
 
         loc = location.strip()
         if "," not in loc:
-            logger.error("POI range search requires lon,lat coords")
-            return None
+            return {"code": "error", "error": "POI range search requires lon,lat coords"}
         try:
             lon, lat = [float(s) for s in loc.split(",", 1)]
             loc = f"{lon:.2f},{lat:.2f}"
         except Exception:
-            logger.error(f"Bad coords: {loc}")
-            return None
+            return {"code": "error", "error": f"Bad coords: {loc}"}
 
         params: Dict[str, Any] = {
             "location": loc,

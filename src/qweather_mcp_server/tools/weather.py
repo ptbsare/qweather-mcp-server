@@ -22,9 +22,9 @@ def _resolve_location(location: Optional[str], city: Optional[str]) -> Optional[
     if location and location.strip():
         loc = location.strip()
         if "," in loc:
-            return loc  # already coords
+            return loc
         if loc.isdigit():
-            return loc  # already LocationID
+            return loc
         resolved = _resolve_city(loc)
         return resolved or loc
     if city and city.strip():
@@ -42,7 +42,7 @@ def register_weather_tools(mcp: FastMCP) -> None:
         city: Optional[str] = None,
         lang: str = "zh",
         unit: str = "m",
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Dict[str, Any]:
         """获取实时天气。
 
         Args:
@@ -52,20 +52,17 @@ def register_weather_tools(mcp: FastMCP) -> None:
             unit: 单位，"m" 公制（默认）或 "i" 英制。
         """
         if unit not in {"m", "i"}:
-            logger.error(f"Invalid unit: {unit}")
-            return None
+            return {"code": "error", "error": f"Invalid unit: {unit}"}
         loc = _resolve_location(location, city)
         if not loc:
-            return None
+            return {"code": "error", "error": "Cannot resolve location"}
         return api_get(
             f"https://{api_host}/v7/weather/now",
             params={"location": loc, "lang": lang, "unit": unit},
         )
 
     @mcp.tool()
-    def get_weather(
-        city: str, days: str = "3d"
-    ) -> Optional[Dict[str, Any]]:
+    def get_weather(city: str, days: str = "3d") -> Dict[str, Any]:
         """获取逐天天气预报。
 
         Args:
@@ -74,11 +71,10 @@ def register_weather_tools(mcp: FastMCP) -> None:
         """
         valid = {"3d", "7d", "10d", "15d", "30d"}
         if days not in valid:
-            logger.error(f"Invalid days: {days}")
-            return None
+            return {"code": "error", "error": f"Invalid days: {days}"}
         loc = _resolve_city(city.strip())
         if not loc:
-            return None
+            return {"code": "error", "error": f"Cannot resolve city: {city}"}
         return api_get(f"https://{api_host}/v7/weather/{days}", params={"location": loc})
 
     @mcp.tool()
@@ -88,7 +84,7 @@ def register_weather_tools(mcp: FastMCP) -> None:
         city: Optional[str] = None,
         lang: str = "zh",
         unit: str = "m",
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Dict[str, Any]:
         """获取逐小时天气预报。
 
         Args:
@@ -99,23 +95,19 @@ def register_weather_tools(mcp: FastMCP) -> None:
             unit: 单位，"m" 公制（默认）或 "i" 英制。
         """
         if hours not in {"24h", "72h", "168h"}:
-            logger.error(f"Invalid hours: {hours}")
-            return None
+            return {"code": "error", "error": f"Invalid hours: {hours}"}
         if unit not in {"m", "i"}:
-            logger.error(f"Invalid unit: {unit}")
-            return None
+            return {"code": "error", "error": f"Invalid unit: {unit}"}
         loc = _resolve_location(location, city)
         if not loc:
-            return None
+            return {"code": "error", "error": "Cannot resolve location"}
         return api_get(
             f"https://{api_host}/v7/weather/{hours}",
             params={"location": loc, "lang": lang, "unit": unit},
         )
 
     @mcp.tool()
-    def get_minutely_5m(
-        location: str, lang: str = "zh"
-    ) -> Optional[Dict[str, Any]]:
+    def get_minutely_5m(location: str, lang: str = "zh") -> Dict[str, Any]:
         """获取分钟级降水预报（未来2小时，5分钟间隔）。
 
         Args:
@@ -126,7 +118,7 @@ def register_weather_tools(mcp: FastMCP) -> None:
         if "," not in loc:
             resolved = _resolve_city(loc, as_coords=True)
             if not resolved:
-                return None
+                return {"code": "error", "error": f"Cannot resolve city: {loc}"}
             loc = resolved
         else:
             try:
@@ -134,15 +126,14 @@ def register_weather_tools(mcp: FastMCP) -> None:
                 lon, lat = float(parts[0]), float(parts[1])
                 loc = f"{lon:.2f},{lat:.2f}"
             except Exception:
-                logger.error(f"Bad coords: {loc}")
-                return None
+                return {"code": "error", "error": f"Bad coords: {loc}"}
         return api_get(
             f"https://{api_host}/v7/minutely/5m",
             params={"location": loc, "lang": lang},
         )
 
     @mcp.tool()
-    def get_warning(city: str) -> Optional[Dict[str, Any]]:
+    def get_warning(city: str) -> Dict[str, Any]:
         """获取气象预警信息。
 
         Args:
@@ -150,7 +141,7 @@ def register_weather_tools(mcp: FastMCP) -> None:
         """
         loc = _resolve_city(city.strip())
         if not loc:
-            return None
+            return {"code": "error", "error": f"Cannot resolve city: {city}"}
         return api_get(
             f"https://{api_host}/v7/warning/now",
             params={"location": loc, "lang": "zh"},
@@ -161,7 +152,7 @@ def register_weather_tools(mcp: FastMCP) -> None:
         city: str,
         days: str = "1d",
         index_types: str = "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16",
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Dict[str, Any]:
         """获取生活指数预报（16种）。
 
         Args:
@@ -173,20 +164,17 @@ def register_weather_tools(mcp: FastMCP) -> None:
                 13-晾晒 14-钓鱼 15-太阳镜 16-空气污染扩散
         """
         if days not in {"1d", "3d"}:
-            logger.error(f"Invalid days: {days}")
-            return None
+            return {"code": "error", "error": f"Invalid days: {days}"}
         loc = _resolve_city(city.strip())
         if not loc:
-            return None
+            return {"code": "error", "error": f"Cannot resolve city: {city}"}
         return api_get(
             f"https://{api_host}/v7/indices/{days}",
             params={"location": loc, "type": index_types.strip(), "lang": "zh"},
         )
 
     @mcp.tool()
-    def get_astronomy_sun(
-        location: str, date: str, lang: str = "zh"
-    ) -> Optional[Dict[str, Any]]:
+    def get_astronomy_sun(location: str, date: str, lang: str = "zh") -> Dict[str, Any]:
         """获取日出日落时间。
 
         Args:
@@ -196,18 +184,16 @@ def register_weather_tools(mcp: FastMCP) -> None:
         """
         loc = _resolve_astronomy_location(location)
         if not loc:
-            return None
+            return {"code": "error", "error": "Cannot resolve location"}
         if not _validate_astronomy_date(date):
-            return None
+            return {"code": "error", "error": f"Invalid date: {date}"}
         return api_get(
             f"https://{api_host}/v7/astronomy/sun",
             params={"location": loc, "date": date, "lang": lang},
         )
 
     @mcp.tool()
-    def get_astronomy_moon(
-        location: str, date: str, lang: str = "zh"
-    ) -> Optional[Dict[str, Any]]:
+    def get_astronomy_moon(location: str, date: str, lang: str = "zh") -> Dict[str, Any]:
         """获取月升月落时间和月相。
 
         Args:
@@ -217,9 +203,9 @@ def register_weather_tools(mcp: FastMCP) -> None:
         """
         loc = _resolve_astronomy_location(location)
         if not loc:
-            return None
+            return {"code": "error", "error": "Cannot resolve location"}
         if not _validate_astronomy_date(date):
-            return None
+            return {"code": "error", "error": f"Invalid date: {date}"}
         return api_get(
             f"https://{api_host}/v7/astronomy/moon",
             params={"location": loc, "date": date, "lang": lang},
@@ -233,7 +219,7 @@ def register_weather_tools(mcp: FastMCP) -> None:
         days: int = 10,
         lang: str = "zh",
         unit: str = "m",
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Dict[str, Any]:
         """获取历史天气数据（并发请求）。
 
         Args:
@@ -244,15 +230,12 @@ def register_weather_tools(mcp: FastMCP) -> None:
             unit: 单位，"m" 公制（默认）或 "i" 英制。
         """
         if not 1 <= days <= 10:
-            logger.error(f"Invalid days: {days}")
-            return None
+            return {"code": "error", "error": f"Invalid days: {days}"}
         if unit not in {"m", "i"}:
-            logger.error(f"Invalid unit: {unit}")
-            return None
-
+            return {"code": "error", "error": f"Invalid unit: {unit}"}
         loc = _resolve_location(location, city)
         if not loc:
-            return None
+            return {"code": "error", "error": "Cannot resolve location"}
 
         beijing_now = datetime.now(timezone.utc) + timedelta(hours=8)
         dates = [

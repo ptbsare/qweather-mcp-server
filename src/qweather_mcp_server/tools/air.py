@@ -29,7 +29,7 @@ def register_air_tools(mcp: FastMCP) -> None:
     """Register all air-quality-related tools."""
 
     @mcp.tool()
-    def get_air_quality(city: str) -> Optional[Dict[str, Any]]:
+    def get_air_quality(city: str) -> Dict[str, Any]:
         """获取实时空气质量（AQI、污染物浓度、健康建议）。
 
         Args:
@@ -37,14 +37,14 @@ def register_air_tools(mcp: FastMCP) -> None:
         """
         coords = _resolve_coords(city)
         if not coords:
-            return None
+            return {"code": "error", "error": f"Cannot resolve city: {city}"}
         lat, lon = coords.split(",")
         return api_get(f"https://{api_host}/airquality/v1/current/{lat}/{lon}", params={"lang": "zh"})
 
     @mcp.tool()
     def get_air_quality_hourly(
         location: str, hours: str = "24h", lang: str = "zh"
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Dict[str, Any]:
         """获取逐小时空气质量预报。
 
         Args:
@@ -53,13 +53,12 @@ def register_air_tools(mcp: FastMCP) -> None:
             lang: 语言，默认 "zh"。
         """
         if hours not in {"24h", "72h", "168h"}:
-            logger.error(f"Invalid hours: {hours}")
-            return None
+            return {"code": "error", "error": f"Invalid hours: {hours}"}
         coords = location.strip()
         if "," not in coords:
             coords = _resolve_coords(coords)
             if not coords:
-                return None
+                return {"code": "error", "error": f"Cannot resolve city: {location}"}
         lat, lon = coords.split(",")
         return api_get(
             f"https://{api_host}/airquality/v1/hourly/{lat}/{lon}",
@@ -69,7 +68,7 @@ def register_air_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     def get_air_quality_daily(
         location: str, days: str = "3d", lang: str = "zh"
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Dict[str, Any]:
         """获取逐日空气质量预报。
 
         Args:
@@ -78,13 +77,12 @@ def register_air_tools(mcp: FastMCP) -> None:
             lang: 语言，默认 "zh"。
         """
         if days not in {"3d", "7d", "15d"}:
-            logger.error(f"Invalid days: {days}")
-            return None
+            return {"code": "error", "error": f"Invalid days: {days}"}
         coords = location.strip()
         if "," not in coords:
             coords = _resolve_coords(coords)
             if not coords:
-                return None
+                return {"code": "error", "error": f"Cannot resolve city: {location}"}
         lat, lon = coords.split(",")
         return api_get(
             f"https://{api_host}/airquality/v1/daily/{lat}/{lon}",
@@ -92,25 +90,20 @@ def register_air_tools(mcp: FastMCP) -> None:
         )
 
     @mcp.tool()
-    def get_air_quality_stations(
-        station_id: str, lang: str = "zh"
-    ) -> Optional[Dict[str, Any]]:
+    def get_air_quality_stations(station_id: str, lang: str = "zh") -> Dict[str, Any]:
         """获取空气质量监测站污染物数据。
 
         Args:
             station_id: 监测站 ID，如 "P58911"。
             lang: 语言，默认 "zh"。
         """
-        sid = station_id.strip()
         return api_get(
-            f"https://{api_host}/airquality/v1/station/{sid}",
+            f"https://{api_host}/airquality/v1/station/{station_id.strip()}",
             params={"lang": lang},
         )
 
     @mcp.tool()
-    def get_air_quality_history(
-        city: str, days: int = 10, lang: str = "zh"
-    ) -> Optional[Dict[str, Any]]:
+    def get_air_quality_history(city: str, days: int = 10, lang: str = "zh") -> Dict[str, Any]:
         """获取历史空气质量数据（并发请求）。
 
         Args:
@@ -119,11 +112,10 @@ def register_air_tools(mcp: FastMCP) -> None:
             lang: 语言，默认 "zh"。
         """
         if not 1 <= days <= 10:
-            logger.error(f"Invalid days: {days}")
-            return None
+            return {"code": "error", "error": f"Invalid days: {days}"}
         loc = _resolve_city(city.strip())
         if not loc:
-            return None
+            return {"code": "error", "error": f"Cannot resolve city: {city}"}
 
         beijing_now = datetime.now(timezone.utc) + timedelta(hours=8)
         dates = [
