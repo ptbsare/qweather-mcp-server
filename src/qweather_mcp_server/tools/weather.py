@@ -269,11 +269,10 @@ def register_weather_tools(mcp: FastMCP) -> None:
             )
             return date, data
 
-        with _DEFAULT_EXECUTOR as pool:
-            futures = {pool.submit(_fetch, d): d for d in dates}
-            for fut in as_completed(futures):
-                d, data = fut.result()
-                results[d] = data or {"error": "no data"}
+        futures = {_DEFAULT_EXECUTOR.submit(_fetch, d): d for d in dates}
+        for fut in as_completed(futures):
+            d, data = fut.result()
+            results[d] = data or {"error": "no data"}
 
         logger.info(f"History weather fetched for {city or location}: {len(results)} days")
         return results
