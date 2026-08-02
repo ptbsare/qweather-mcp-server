@@ -775,7 +775,7 @@ dev = [
 requires-dist = [
     { name = "cryptography", specifier = ">=41.0.0" },
     { name = "httpx", specifier = ">=0.25.0" },
-    { name = "mcp", extras = ["cli"], specifier = ">=1.10.0" },
+    { name = "mcp", extras = ["cli"], specifier = ">=1.10.0,<2.0.0" },
     { name = "pyjwt", specifier = ">=2.8.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "typer", specifier = ">=0.12.0" },
