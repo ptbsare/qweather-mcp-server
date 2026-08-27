@@ -133,18 +133,42 @@ def register_weather_tools(mcp: FastMCP) -> None:
         )
 
     @mcp.tool()
-    def get_warning(city: str) -> Dict[str, Any]:
-        """获取气象预警信息。
+    def get_warning(
+        city: str,
+        lang: str = "zh",
+        local_time: bool = True,
+    ) -> Dict[str, Any]:
+        """获取实时天气预警信息。
 
         Args:
-            city: 城市名称。
+            city: 城市名称，或 "纬度,经度" 坐标。
+            lang: 语言，默认 "zh"。
+            local_time: 是否返回当地时间，默认 True。
         """
-        loc = _resolve_city(city.strip())
-        if not loc:
-            return {"code": "error", "error": f"Cannot resolve city: {city}"}
+        loc = city.strip()
+        if "," in loc:
+            try:
+                a, b = [float(s.strip()) for s in loc.split(",", 1)]
+            except Exception:
+                return {"code": "error", "error": f"Bad coords: {loc}"}
+            # Path is {lat}/{lon}. If first value is clearly a longitude, swap.
+            if abs(a) > 90:
+                lon, lat = a, b
+            else:
+                lat, lon = a, b
+        else:
+            raw = _resolve_city(loc, as_coords=True)
+            if not raw:
+                return {"code": "error", "error": f"Cannot resolve city: {city}"}
+            lon_s, lat_s = raw.split(",")
+            lat, lon = float(lat_s), float(lon_s)
+
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            return {"code": "error", "error": f"Invalid coords: {lat},{lon}"}
+
         return api_get(
-            f"https://{api_host}/v7/warning/now",
-            params={"location": loc, "lang": "zh"},
+            f"https://{api_host}/weatheralert/v1/current/{lat:.2f}/{lon:.2f}",
+            params={"lang": lang, "localTime": str(local_time).lower()},
         )
 
     @mcp.tool()
