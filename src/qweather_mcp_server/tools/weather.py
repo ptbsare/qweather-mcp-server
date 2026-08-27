@@ -33,6 +33,46 @@ def _resolve_location(location: Optional[str], city: Optional[str]) -> Optional[
     return None
 
 
+def _resolve_warning_coords(location: Optional[str], city: Optional[str]) -> Optional[str]:
+    """Resolve *location* or *city* to 'lat,lon' coords for the weather-alert API.
+
+    Accepts 'lat,lon' or 'lon,lat' coords, a LocationID, or a city name.
+    Returns None if it cannot be resolved or is out of range.
+    """
+    key: Optional[str] = None
+    if location and location.strip():
+        key = location.strip()
+    elif city and city.strip():
+        key = city.strip()
+    else:
+        logger.error("Neither location nor city provided")
+        return None
+
+    if "," in key:
+        try:
+            a, b = [float(s) for s in key.split(",", 1)]
+        except Exception:
+            logger.error(f"Bad coords: {key}")
+            return None
+        # Path is {lat}/{lon}. If the first value is clearly a longitude, swap.
+        if abs(a) > 90:
+            lon, lat = a, b
+        else:
+            lat, lon = a, b
+    else:
+        raw = _resolve_city(key, as_coords=True)  # returns "lon,lat"
+        if not raw:
+            logger.error(f"Cannot resolve location: {key}")
+            return None
+        lon_s, lat_s = raw.split(",")
+        lat, lon = float(lat_s), float(lon_s)
+
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        logger.error(f"Invalid coords: {lat},{lon}")
+        return None
+    return f"{lat:.2f},{lon:.2f}"
+
+
 def register_weather_tools(mcp: FastMCP) -> None:
     """Register all weather-related tools."""
 
@@ -134,40 +174,25 @@ def register_weather_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def get_warning(
-        city: str,
+        location: Optional[str] = None,
+        city: Optional[str] = None,
         lang: str = "zh",
         local_time: bool = True,
     ) -> Dict[str, Any]:
         """获取实时天气预警信息。
 
         Args:
-            city: 城市名称，或 "纬度,经度" 坐标。
+            location: "纬度,经度" 坐标、LocationID 或城市名。与 city 二选一。
+            city: 城市名称，如 "佛山"。与 location 二选一。
             lang: 语言，默认 "zh"。
             local_time: 是否返回当地时间，默认 True。
         """
-        loc = city.strip()
-        if "," in loc:
-            try:
-                a, b = [float(s.strip()) for s in loc.split(",", 1)]
-            except Exception:
-                return {"code": "error", "error": f"Bad coords: {loc}"}
-            # Path is {lat}/{lon}. If first value is clearly a longitude, swap.
-            if abs(a) > 90:
-                lon, lat = a, b
-            else:
-                lat, lon = a, b
-        else:
-            raw = _resolve_city(loc, as_coords=True)
-            if not raw:
-                return {"code": "error", "error": f"Cannot resolve city: {city}"}
-            lon_s, lat_s = raw.split(",")
-            lat, lon = float(lat_s), float(lon_s)
-
-        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
-            return {"code": "error", "error": f"Invalid coords: {lat},{lon}"}
+        coords = _resolve_warning_coords(location, city)
+        if not coords:
+            return {"code": "error", "error": "Cannot resolve location"}
 
         return api_get(
-            f"https://{api_host}/weatheralert/v1/current/{lat:.2f}/{lon:.2f}",
+            f"https://{api_host}/weatheralert/v1/current/{coords}",
             params={"lang": lang, "localTime": str(local_time).lower()},
         )
 
