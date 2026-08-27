@@ -33,8 +33,8 @@ def _resolve_location(location: Optional[str], city: Optional[str]) -> Optional[
     return None
 
 
-def _resolve_warning_coords(location: Optional[str], city: Optional[str]) -> Optional[str]:
-    """Resolve *location* or *city* to 'lat,lon' coords for the weather-alert API.
+def _resolve_warning_coords(location: Optional[str], city: Optional[str]) -> Optional[tuple[str, str]]:
+    """Resolve *location* or *city* to (lat, lon) strings for the weather-alert API.
 
     Accepts 'lat,lon' or 'lon,lat' coords, a LocationID, or a city name.
     Returns None if it cannot be resolved or is out of range.
@@ -70,7 +70,7 @@ def _resolve_warning_coords(location: Optional[str], city: Optional[str]) -> Opt
     if not (-90 <= lat <= 90 and -180 <= lon <= 180):
         logger.error(f"Invalid coords: {lat},{lon}")
         return None
-    return f"{lat:.2f},{lon:.2f}"
+    return f"{lat:.2f}", f"{lon:.2f}"
 
 
 def register_weather_tools(mcp: FastMCP) -> None:
@@ -190,9 +190,10 @@ def register_weather_tools(mcp: FastMCP) -> None:
         coords = _resolve_warning_coords(location, city)
         if not coords:
             return {"code": "error", "error": "Cannot resolve location"}
+        lat, lon = coords
 
         return api_get(
-            f"https://{api_host}/weatheralert/v1/current/{coords}",
+            f"https://{api_host}/weatheralert/v1/current/{lat}/{lon}",
             params={"lang": lang, "localTime": str(local_time).lower()},
         )
 
